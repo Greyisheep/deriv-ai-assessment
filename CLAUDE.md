@@ -11,7 +11,8 @@ the model, not a happy-path demo.
 3. At least 3 labeled eval cases + a runner that scores them.
 4. Validation and error handling beat extra features.
 5. Never commit secrets. Key from env only (.env is gitignored).
-6. Temperature 0 for structured tasks; model behind a swappable interface.
+6. Determinism via explicit system-instruction rules (Gemini 3.x discourages
+   temperature/top_p); model behind a swappable interface (llm.py).
 
 ## Workflow
 1. Restate problem + MVP in PLAN.md, state assumptions.

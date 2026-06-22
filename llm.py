@@ -14,7 +14,7 @@ from google.genai import types
 
 load_dotenv()
 
-_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
 _client: genai.Client | None = None
 
 
@@ -41,7 +41,8 @@ def structured_call(system: str, user: str, schema: dict, model: str | None = No
         model=model or _MODEL,
         contents=user,
         config=types.GenerateContentConfig(
-            temperature=0,
+            # Gemini 3.x discourages temperature/top_p/top_k; determinism comes
+            # from the explicit schema + rules in the system instruction above.
             response_mime_type="application/json",
             system_instruction=system_full,
         ),
