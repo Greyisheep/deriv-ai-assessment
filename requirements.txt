@@ -1,5 +1,8 @@
 google-genai
 pydantic
 python-dotenv
+fastapi
+uvicorn
+httpx
 ruff
 pytest

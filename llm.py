@@ -29,10 +29,11 @@ def _get_client() -> genai.Client:
     return _client
 
 
-def structured_call(system: str, user: str, schema: dict, model: str | None = None) -> dict:
-    """Return JSON matching `schema` (a JSON-Schema-style dict). The schema is
-    pinned into the system instruction and JSON mode is forced, so output parses.
-    Returns the raw dict; validate it (pydantic or hand-rolled) at the call site."""
+def structured_text(system: str, user: str, schema: dict, model: str | None = None) -> str:
+    """Like structured_call but returns the RAW response text without parsing.
+
+    Lets the caller capture the model's exact bytes (for a raw artifact) and own
+    its own json.loads + repair, instead of having a parse error swallowed here."""
     system_full = (
         f"{system}\n\nReturn ONLY a JSON object matching this schema:\n"
         f"{json.dumps(schema)}"
@@ -47,7 +48,14 @@ def structured_call(system: str, user: str, schema: dict, model: str | None = No
             system_instruction=system_full,
         ),
     )
-    return json.loads(resp.text)
+    return resp.text
+
+
+def structured_call(system: str, user: str, schema: dict, model: str | None = None) -> dict:
+    """Return JSON matching `schema` (a JSON-Schema-style dict). The schema is
+    pinned into the system instruction and JSON mode is forced, so output parses.
+    Returns the raw dict; validate it (pydantic or hand-rolled) at the call site."""
+    return json.loads(structured_text(system, user, schema, model))
 
 
 def text_call(system: str, user: str, model: str | None = None) -> str:

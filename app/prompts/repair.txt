@@ -1,0 +1,9 @@
+Quote text:
+{quote_text}
+
+Your previous response was invalid and could not be used.
+Problem: {error}
+Previous response:
+{bad_output}
+
+Return a corrected JSON object that matches the schema exactly. JSON only, no prose.
