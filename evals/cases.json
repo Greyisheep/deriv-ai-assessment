@@ -1,0 +1,40 @@
+[
+  {
+    "id": "EVAL-clean",
+    "text": "Supplier: Acme Tools. Quote valid until 2026-09-30. Currency USD. 25 units of Hex Bolt M6 at $0.40 each. SKU HB-006. Lead time 10 days. Shipping included.",
+    "expect": {
+      "needs_review": false,
+      "currency": "USD",
+      "lead_time_days": 10,
+      "quote_expiry": "2026-09-30",
+      "shipping_included": true
+    }
+  },
+  {
+    "id": "EVAL-weeks",
+    "text": "Delta Castings offers: Bronze flanges - qty 8 - GBP 12/unit. Delivery around 2 weeks. Freight extra. No SKU provided.",
+    "expect": {
+      "needs_review": false,
+      "currency": "GBP",
+      "lead_time_days": 14,
+      "shipping_included": false
+    }
+  },
+  {
+    "id": "EVAL-relative-expiry",
+    "text": "Epsilon Films quotation: 500 sheets @ 1.1 EUR each. Expires next Monday. rush job.",
+    "expect": {
+      "needs_review": true,
+      "currency": "EUR",
+      "quote_expiry": null
+    }
+  },
+  {
+    "id": "EVAL-ambiguous-currency",
+    "text": "Zeta Hardware: 60 brackets at $3.25 each. SKU ZB-12. Lead time 5 days.",
+    "expect": {
+      "needs_review": true,
+      "currency": null
+    }
+  }
+]

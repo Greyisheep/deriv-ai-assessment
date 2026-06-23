@@ -4,3 +4,8 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .ruff_cache/
+
+# Generated pipeline artifacts
+outputs/
+review_summary.json
+llm_calls.jsonl
