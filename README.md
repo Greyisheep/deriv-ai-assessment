@@ -108,6 +108,30 @@ python main.py --input quotes.json --mock   # force the heuristic mock
 python main.py --input quotes.json --real   # force Gemini
 ```
 
+### Docker (zero local Python setup)
+Pins the Python version and isolates dependencies, so it runs identically on any
+machine. Key-free by default (heuristic mock).
+```bash
+docker build -t quote-extractor .
+
+# CLI batch on the sample input (default command); prints the review summary
+docker run --rm quote-extractor
+
+# Persist artifacts to the host
+docker run --rm -v "$PWD/outputs:/app/outputs" quote-extractor
+
+# Run the test suite + evals inside the image
+docker run --rm quote-extractor python -m pytest -q
+docker run --rm quote-extractor python evals/run_evals.py
+
+# Serve the API (or: `docker compose up`)
+docker run --rm -p 8000:8000 quote-extractor \
+  uvicorn app.api:app --host 0.0.0.0 --port 8000
+
+# Use the real model: pass a key (auto-switches off the mock)
+docker run --rm -e GEMINI_API_KEY=... quote-extractor
+```
+
 ### API
 ```bash
 uvicorn app.api:app --reload
@@ -155,4 +179,4 @@ end-to-end behavior against labeled expectations in
 - Run evals in CI; add adversarial/malformed fixtures to the eval set.
 - Real-model integration tests behind a key-gated marker.
 - Structured logging + metrics on review rate and repair rate.
-- Dockerfile for deploy; pin dependency versions.
+- Pin dependency versions (the Dockerfile pins Python; deps are currently unpinned).

@@ -1,0 +1,11 @@
+.git/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+# Generated artifacts — produced inside the container at run time.
+outputs/
+review_summary.json
+llm_calls.jsonl

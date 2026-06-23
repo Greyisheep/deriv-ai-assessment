@@ -1,0 +1,14 @@
+# Convenience for running the API in one command: `docker compose up`.
+# Runs key-free (heuristic mock) by default; export GEMINI_API_KEY to use Gemini.
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - LLM_MODE=${LLM_MODE:-auto}
+    command: uvicorn app.api:app --host 0.0.0.0 --port 8000
+    # Persist generated artifacts to the host.
+    volumes:
+      - ./outputs:/app/outputs
