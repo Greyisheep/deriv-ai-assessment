@@ -61,7 +61,7 @@ def _description(text: str) -> str | None:
     for pat in (
         r"units?\s+of\s+(.+?)\s+(?:at|@)\b",
         r":\s*(.+?)\s*-\s*qty",
-        r"\d+\s+(.+?)\s*@",
+        r"\d+\s+(.+?)\s+(?:at\b|@)",
         r"qty\s*\d+\s*-?\s*(.+?)(?:\s*-|\.|$)",
     ):
         m = re.search(pat, text, re.IGNORECASE)

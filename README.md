@@ -124,8 +124,8 @@ docker run --rm -v "$PWD/outputs:/app/outputs" quote-extractor
 docker run --rm quote-extractor python -m pytest -q
 docker run --rm quote-extractor python evals/run_evals.py
 
-# Serve the API (or: `docker compose up`)
-docker run --rm -p 8000:8000 quote-extractor \
+# Serve the API (or: `docker compose up`). Bind to localhost only.
+docker run --rm -p 127.0.0.1:8000:8000 quote-extractor \
   uvicorn app.api:app --host 0.0.0.0 --port 8000
 
 # Use the real model: pass a key (auto-switches off the mock)
@@ -175,8 +175,85 @@ end-to-end behavior against labeled expectations in
 - No persistence/DB, no auth, no concurrency/batching.
 - Currency resolution uses a small ISO/symbol table, not a full currency library.
 
-## What I'd do next
-- Run evals in CI; add adversarial/malformed fixtures to the eval set.
-- Real-model integration tests behind a key-gated marker.
-- Structured logging + metrics on review rate and repair rate.
-- Pin dependency versions (the Dockerfile pins Python; deps are currently unpinned).
+## Path to production
+The build is intentionally bounded, but the structure is laid so each
+production concern extends a seam that already exists rather than requiring a
+rewrite. For each pillar below: what's already in place, then how to grow it.
+
+### Security
+**Already on the path**
+- Secrets come from the environment only (`.env`, git-ignored and excluded from
+  the Docker image via `.dockerignore`); none are committed.
+- **Model output is never trusted or executed** — it's parsed as structured JSON
+  (no free-text `eval`/regex-as-logic) and every field is schema- and
+  range-validated before use ([`app/validate.py`](app/validate.py)).
+- Input is shape-checked at the boundary; a malformed record is isolated, not
+  fatal ([`app/loader.py`](app/loader.py)).
+- Money is exact `Decimal`, removing a class of rounding/overflow bugs.
+
+**How to extend**
+- AuthN/Z on the API (API keys or OAuth) + per-caller rate limiting.
+- Cap input size and item counts; add a prompt-injection guard (the quote text is
+  untrusted user content reaching the model).
+- Pin dependency versions + scan (`pip-audit`, Dependabot); run the container as a
+  non-root user with a read-only filesystem.
+- Redact PII/secrets from `llm_calls.jsonl` and raw artifacts before shipping logs
+  off-box.
+
+### Scalability
+**Already on the path**
+- The pipeline core is **stateless and interface-agnostic** — CLI and FastAPI call
+  the identical `run_quotes()` ([`app/pipeline.py`](app/pipeline.py)), so it
+  scales horizontally behind a load balancer with no shared state.
+- Exactly **one model call per quote**, with a clean adapter seam to swap models
+  or providers ([`app/extractor.py`](app/extractor.py)).
+- Per-quote processing is independent — embarrassingly parallel by construction.
+
+**How to extend**
+- Process quotes concurrently (`asyncio` + an async model client, or a worker
+  pool); the per-quote independence means this is a localized change.
+- Move batch runs to a queue/worker model (e.g. SQS + workers, or Celery) and
+  return a job id from the API for large inputs.
+- Add a response/extraction cache keyed by quote-text hash to skip re-extracting
+  identical text; persist results to a DB instead of the filesystem.
+- Token-budget and cost controls; batch-friendly model endpoints.
+
+### Reliability
+**Already on the path**
+- **Never crashes on the model**: malformed/invalid output is repaired once, then
+  falls back to a safe default with `needs_review=true`
+  ([`app/extractor.py`](app/extractor.py)).
+- Transport/auth errors are caught **per quote** — one failure can't sink the
+  batch ([`app/pipeline.py`](app/pipeline.py)).
+- A final Pydantic schema gate catches bad normalized output before it's written.
+- Deterministic, code-owned decisions (validation, normalization, review) are
+  reproducible and covered by **29 tests + a 4-case eval runner**.
+
+**How to extend**
+- Retries with exponential backoff + jitter and a circuit breaker around the
+  model call; timeouts on every external call.
+- Idempotency keys so re-running a batch doesn't double-write; atomic artifact
+  writes (write-temp-then-rename).
+- Run evals in CI as a regression gate; add adversarial/malformed fixtures and
+  real-model integration tests behind a key-gated marker.
+- Dead-letter handling for quotes that fail repeatedly.
+
+### Observability
+**Already on the path**
+- Every extraction call is logged as structured JSON to `llm_calls.jsonl`
+  (`quote_id`, ISO timestamp, provider, model, input/output artifacts, and a
+  `status` of `success | parse_error | validation_failed`).
+- Full audit trail per quote: the raw model output (`{id}_raw.json`) sits next to
+  the normalized result, and `review_summary.json` records exactly *why* each
+  quote was flagged.
+
+**How to extend**
+- Emit metrics from the existing `status`/review signals: extraction success
+  rate, repair rate, review rate, and per-field null rate — the leading
+  indicators of model drift.
+- Structured logging to stdout (JSON) for log aggregation; request/trace IDs
+  threaded through the pipeline (OpenTelemetry).
+- A `/metrics` endpoint (Prometheus) and dashboards/alerts on review-rate spikes
+  or a climbing `parse_error` rate.
+- Sample and store full prompt/response pairs (with redaction) for offline eval
+  and prompt-regression testing.
